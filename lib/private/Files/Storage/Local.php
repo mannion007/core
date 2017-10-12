@@ -41,7 +41,7 @@ use OCP\Files\ForbiddenException;
 /**
  * for local filestore, we only have to map the paths
  */
-class Local extends \OC\Files\Storage\Common {
+class Local extends Common implements IVersionedStorage {
 	protected $datadir;
 
 	protected $dataDirLength;
@@ -440,5 +440,26 @@ class Local extends \OC\Files\Storage\Common {
 		} else {
 			return parent::moveFromStorage($sourceStorage, $sourceInternalPath, $targetInternalPath);
 		}
+	}
+
+	public function getVersions($internalPath) {
+		// KISS implementation
+		if (!\OC_App::isEnabled('files_versions')) {
+			return [];
+		}
+		if (strpos($internalPath, 'files/') !== 0) {
+			return [];
+		}
+		$internalPath = substr($internalPath, 6);
+		return array_values(
+			\OCA\Files_Versions\Storage::getVersions($this->getOwner($internalPath), $internalPath));
+	}
+
+	public function getVersion($internalPath, $versionId) {
+		$versions = $this->getVersions($internalPath);
+		$versions = array_filter($versions, function ($version) use($versionId){
+			return $version['version'] === $versionId;
+		});
+		return array_shift($versions);
 	}
 }
